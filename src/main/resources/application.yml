@@ -1,0 +1,87 @@
+spring:
+  application:
+    name: AIQaSystem
+
+  # ==========================================
+  # 数据库与 JPA 配置
+  # ==========================================
+  datasource:
+    url: jdbc:mysql://localhost:3306/temp
+    username: root
+    password: 1234
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+  # ==========================================
+  # Web 与文件上传配置
+  # ==========================================
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  # 允许 Bean 覆盖 (解决你之前自定义配置类覆盖默认 Bean 的需求)
+  main:
+    allow-bean-definition-overriding: true
+
+  # ==========================================
+  # Spring AI 官方标准配置 (对接硅基流动 Qwen)
+  # ==========================================
+  ai:
+    openai:
+      api-key: sk-vjkqmxsddpaianiyrxrgvjmdvhzvihoqgtdmbladpprudtso
+      base-url: https://api.siliconflow.com
+      chat:
+        options:
+          model: Qwen/QwQ-32B
+      embedding:
+        options:
+          model: Qwen/Qwen3-Embedding-0.6B
+
+    # 官方自带的 Milvus 参数支持
+    vectorstore:
+      milvus:
+        client:
+          host: localhost
+          port: 19530
+          token: "root:1234"
+        collection-name: aiqa_knowledge_base_v2
+        initialize-schema: false
+        embedding-dimension: 1024
+        index-type: HNSW
+        metric-type: cosine
+
+# ==========================================
+# 自定义业务系统配置
+# ==========================================
+app:
+  upload:
+    path: D:/aiqa_data/uploads/
+
+# ==========================================
+# Milvus 数据库配置, AI 上下文与 Tokenizer 配置
+# ==========================================
+aiqa:
+  milvus:
+    uri: "http://localhost:19530"
+    collection-name: "aiqa_knowledge_base_v2"
+    dimension: 1024
+    index-type: "IVF_FLAT"
+    metric-type: "COSINE"
+    default-type: "chunk"
+    top-k: 5
+    token: "root:1234"
+  llm:
+    active-provider: openAi
+    max-context-tokens: 6000         # 你的模型总 Token 预算上限
+    reserved-output-tokens: 1500     # 留给模型生成回答的安全空间
+    tokenizer-path: "tokenizers/qwen/qwen-2.5-tokenizer.json" # 本地离线词表路径
+
+# ==========================================
+# 安全认证配置
+# ==========================================
+security:
+  jwt:
+    secret-key: YmlzaGVwcm9qZWN0YWlxYXN5c3RlbXNlY3JldGtleTIwMjY=
+    expiration-time: 604800000

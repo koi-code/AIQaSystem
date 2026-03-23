@@ -91,7 +91,7 @@ public class DocumentServiceImpl implements DocumentService {
         try {
             log.info("开始解析文件: {}", originalName);
             DocumentParser.ParseResult parseResult = documentParser.parseWithPages(filePath);
-            List<DocumentParser.PageContent> pages = parseResult.getPages();
+            List<DocumentParser.PageContent> pages = parseResult.pages();
 
             List<DocumentChunk> chunksToSave = new ArrayList<>();
             int index = 0;
@@ -99,8 +99,8 @@ public class DocumentServiceImpl implements DocumentService {
                 chunksToSave.add(DocumentChunk.builder()
                         .document(document)
                         .chunkIndex(index++)
-                        .pageNum(page.getPageNum())
-                        .content(page.getContent())
+                        .pageNum(page.pageNum())
+                        .content(page.content())
                         .build());
             }
 

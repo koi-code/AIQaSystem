@@ -1,6 +1,6 @@
 package com.yiwilee.aiqasystem.util;
 
-import com.yiwilee.aiqasystem.config.JwtProperties;
+import com.yiwilee.aiqasystem.config.properties.JwtProperties;
 import com.yiwilee.aiqasystem.model.entity.UserPrincipal;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

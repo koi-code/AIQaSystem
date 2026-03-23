@@ -95,7 +95,7 @@ public class DocumentParser {
         @Override
         public void startElement(String uri, String localName, String qName, Attributes attributes) {
             if ("div".equalsIgnoreCase(qName) && "page".equalsIgnoreCase(attributes.getValue("class"))) {
-                if (currentPage.length() > 0) {
+                if (!currentPage.isEmpty()) {
                     currentPage = new StringBuilder();
                     pages.add(currentPage);
                 }
@@ -146,23 +146,12 @@ public class DocumentParser {
         return chunks;
     }
 
-    @Data
-    public static class ParseResult {
-        private String fullContent;
-        private List<PageContent> pages;
-        public ParseResult(String fullContent, List<PageContent> pages) {
-            this.fullContent = fullContent;
-            this.pages = pages;
-        }
-    }
+    public static record ParseResult (
+        String fullContent,
+        List<PageContent> pages
+    ){}
 
-    @Data
-    public static class PageContent {
-        private int pageNum;
-        private String content;
-        public PageContent(int pageNum, String content) {
-            this.pageNum = pageNum;
-            this.content = content;
-        }
-    }
+    public static record PageContent(
+        int pageNum,
+        String content){}
 }

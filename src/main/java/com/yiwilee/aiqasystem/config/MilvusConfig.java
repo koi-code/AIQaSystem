@@ -1,73 +1,45 @@
 package com.yiwilee.aiqasystem.config;
 
-import io.milvus.param.IndexType;
 import io.milvus.v2.client.ConnectConfig;
 import io.milvus.v2.client.MilvusClientV2;
 import io.milvus.v2.common.IndexParam;
 import lombok.Data;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
 
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "milvus")
+@ConfigurationProperties(prefix = "aiqa.milvus")
 public class MilvusConfig {
-    /**
-     * Milvus 服务器地址
-     */
-    private String uri = "http://localhost:19530";
 
-    /**
-     * 集合名称
-     */
-    private String collectionName = "aiqa_knowledge_base_v2";
-
-    /**
-    * 向量维度
-    */
-    private int dimension = 1024;
-
-    /**
-     * 索引类型
-     */
-    private String indexType = "IVF_FLAT";
-
-    /**
-     * 相似度计算方式
-     */
-    private String metricType = "COSINE";
-
-    /**
-     * 用户名：密码
-    */
-    @Value("${spring.ai.vectorstore.milvus.client.token}")
-    private String token;
-
-    private String defaultType = "chunk";
-
-    private int topK = 5;
+    private String uri;
+    private String collectionName;
+    private int dimension;
+    private String indexType;
+    private String metricType;
+    private String defaultType;
+    private int topK;
+    private String token; // 统一从 aiqa.milvus.token 获取
 
     @Bean
     public MilvusClientV2 milvusClientV2() {
-        // 1、创建连接参数
-        ConnectConfig connectConfig = ConnectConfig
-                .builder()
-                .uri(uri)
-//                可选
-//                .token(token)
-                .build();
-        // 2、创建客户端
-        return new MilvusClientV2(connectConfig);
+        ConnectConfig.ConnectConfigBuilder builder = ConnectConfig.builder().uri(uri);
+
+        // 如果有鉴权 token 才配置
+        if (StringUtils.hasText(token)) {
+            builder.token(token);
+        }
+
+        return new MilvusClientV2(builder.build());
     }
 
-    public IndexParam.IndexType getIndexType() {
+    public IndexParam.IndexType getIndexTypeEnum() {
         return IndexParam.IndexType.valueOf(indexType);
     }
 
-    public IndexParam.MetricType getMetricType() {
+    public IndexParam.MetricType getMetricTypeEnum() {
         return IndexParam.MetricType.valueOf(metricType);
     }
-
 }
