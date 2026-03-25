@@ -1,6 +1,8 @@
 package com.yiwilee.aiqasystem.controller;
 
 import com.yiwilee.aiqasystem.common.Result;
+import com.yiwilee.aiqasystem.common.ResultCode;
+import com.yiwilee.aiqasystem.constant.ApiVersion;
 import com.yiwilee.aiqasystem.model.dto.UserLoginDTO;
 import com.yiwilee.aiqasystem.model.dto.UserRegisterDTO;
 import com.yiwilee.aiqasystem.model.vo.LoginTokenVO;
@@ -10,11 +12,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * 身份认证网关
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping(ApiVersion.BASE_VERSION+"/auth")
 @RequiredArgsConstructor
 @Tag(name = "01. 身份认证", description = "提供用户登录、注册等公开访问接口")
 public class AuthController {
@@ -51,5 +51,11 @@ public class AuthController {
 
         log.info("新用户 [{}] 注册成功", registerDTO.username());
         return Result.success("注册成功", userVO);
+    }
+
+    @PostMapping("/health")
+    @Operation(summary = "检测服务器状态（连通性）", description = "检测后端服务器是否运行正常，测试前后端的连通性")
+    public ResponseEntity<Result<String>> pingHealth(@RequestParam("someData") String someData) {
+        return ResponseEntity.ok(Result.success(ResultCode.SERVER_ALIVE.getCode(), ResultCode.SERVER_ALIVE.getMsg(), someData));
     }
 }

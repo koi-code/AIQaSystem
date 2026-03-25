@@ -1,5 +1,6 @@
 package com.yiwilee.aiqasystem.controller;
 
+import com.yiwilee.aiqasystem.constant.ApiVersion;
 import com.yiwilee.aiqasystem.model.dto.RagMessageDTO;
 import com.yiwilee.aiqasystem.service.RagService;
 import com.yiwilee.aiqasystem.util.SecurityUtils;
@@ -21,7 +22,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/rag")
+@RequestMapping(ApiVersion.BASE_VERSION+"/rag")
 @RequiredArgsConstructor
 @Tag(name = "06. 核心 AI 问答引擎", description = "基于 SSE (Server-Sent Events) 的流式问答枢纽")
 public class RagChatController {

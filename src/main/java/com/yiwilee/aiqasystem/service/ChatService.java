@@ -5,6 +5,7 @@ import com.yiwilee.aiqasystem.model.dto.ChatSessionUpdateDTO;
 import com.yiwilee.aiqasystem.model.entity.ChatMessage;
 import com.yiwilee.aiqasystem.model.vo.ChatMessageVO;
 import com.yiwilee.aiqasystem.model.vo.ChatSessionVO;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -44,7 +45,7 @@ public interface ChatService {
      * @param sessionId 会话主键 ID
      * @param userId    当前操作用户 ID (用于越权校验)
      */
-    void deleteSession(Long sessionId, Long userId);
+    void deleteSession(Long sessionId);
 
     /**
      * 批量清空指定用户的所有会话记录（如注销账号、清空历史）
@@ -60,6 +61,22 @@ public interface ChatService {
      * @return List<ChatMessageVO> 脱敏且格式化后的聊天记录列表，按时间升序
      */
     List<ChatMessageVO> getSessionMessagesForFrontend(Long sessionId, Long userId);
+
+    /**
+     * 【新增】管理员专用：获取指定用户的所有会话列表
+     * @param targetUserId 目标用户 ID
+     * @return 会话列表
+     */
+    List<ChatSessionVO> getUserSessionsByAdmin(Long targetUserId);
+
+    /**
+     * 【修改】供前端调用的：分页获取指定会话下的聊天记录
+     * @param sessionId 目标会话 ID
+     * @param pageNum   页码
+     * @param pageSize  每页条数（阈值控制）
+     * @return Page<ChatMessageVO> 脱敏且分页后的聊天记录
+     */
+    Page<ChatMessageVO> getSessionMessagesForFrontend(Long sessionId, int pageNum, int pageSize);
 
     // ==========================================
     // 内部服务间调用方法 (供 RagService 使用，不向外暴露)

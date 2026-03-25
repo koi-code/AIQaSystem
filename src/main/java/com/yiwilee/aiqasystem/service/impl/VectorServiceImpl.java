@@ -30,6 +30,7 @@ import java.util.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Deprecated
 public class VectorServiceImpl implements VectorService {
 
     private final MilvusClientV2 milvusClient;
@@ -151,7 +152,6 @@ public class VectorServiceImpl implements VectorService {
 
     @Override
     public List<VectorSearchResult> searchWithRoles(float[] queryVector, int topK, String type, List<String> userRoles) {
-        // 安全底线：没有角色的用户，什么都搜不出来
         if (userRoles == null || userRoles.isEmpty()) {
             log.warn("拦截了一次无角色权限的向量检索请求");
             return Collections.emptyList();

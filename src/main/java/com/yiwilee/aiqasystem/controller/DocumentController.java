@@ -1,6 +1,9 @@
 package com.yiwilee.aiqasystem.controller;
 
+import com.yiwilee.aiqasystem.common.PageData;
 import com.yiwilee.aiqasystem.common.Result;
+import com.yiwilee.aiqasystem.constant.ApiVersion;
+import com.yiwilee.aiqasystem.model.vo.DocumentChunkVO;
 import com.yiwilee.aiqasystem.model.vo.DocumentVO;
 import com.yiwilee.aiqasystem.service.DocumentService;
 import com.yiwilee.aiqasystem.util.SecurityUtils;
@@ -11,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -22,7 +26,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/documents")
+@RequestMapping(ApiVersion.BASE_VERSION+"/documents")
 @RequiredArgsConstructor
 @Tag(name = "04. 知识库管理", description = "私有知识库文档的上传、解析及展示")
 public class DocumentController {
@@ -49,31 +53,72 @@ public class DocumentController {
 
     @GetMapping
     @Operation(summary = "分页查询文档库", description = "支持按文件名模糊搜索及文档解析状态过滤")
-    public Result<Page<DocumentVO>> pageDocuments(
+    public Result<PageData<DocumentVO>> pageDocuments(
             @Parameter(description = "搜索关键词(匹配文件名)") @RequestParam(required = false) String keyword,
             @Parameter(description = "状态: 0-等待, 1-处理中, 2-成功, 3-失败") @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
 
-        // 调用 Service 获取脱敏后的分页 VO 数据
+        // 获取原始的 Page 对象
         Page<DocumentVO> documentVOPage = documentService.pageDocuments(keyword, status, pageNum, pageSize);
 
-        return Result.success(documentVOPage);
+        // 使用 PageData.of() 包装，返回结构化、清爽的 JSON
+        return Result.success(PageData.of(documentVOPage));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除文档", description = "同步清理本地物理文件、MySQL 切片数据及 Milvus 向量数据")
+    // 💡 核心魔法：单资源操作前，直接通过注解拦截越权请求
+    @PreAuthorize("hasRole('ADMIN') or @docAuth.isOwner(#id)")
     public Result<Void> deleteDocument(
-            @Parameter(description = "文档主键 ID") @PathVariable("id") Long documentId) {
+            @Parameter(description = "文档主键 ID") @PathVariable("id") Long id) {
 
-        // 核心防越权点：提取当前用户 ID 传给 Service
-        Long userId = SecurityUtils.getCurrentUserId();
-
-        log.warn("用户 [{}] 尝试删除知识库文件 [{}]", userId, documentId);
-
-        // Service 层内部会校验该文档是否属于当前用户（或当前用户是否为超管）
-        documentService.deleteDocument(documentId, userId);
-
+        // 鉴权已通过，直接调用 Service 执行删除，无需再传 userId
+        documentService.deleteDocument(id);
         return Result.success("文档及关联向量数据已彻底删除", null);
+    }
+
+    // ==========================================
+    // 列表分页查询
+    // ==========================================
+    @GetMapping("/list")
+    @Operation(summary = "分页获取文档列表", description = "智能路由：普通用户获取个人文档；管理员若传 targetUserId 则获取指定用户文档，不传则获取全量。")
+    public Result<PageData<DocumentVO>> getDocuments(
+            @Parameter(description = "目标用户ID（仅管理员可用）") @RequestParam(required = false) Long targetUserId,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        boolean isAdmin = SecurityUtils.isAdmin();
+
+        Long finalUserId = (isAdmin && targetUserId != null) ? targetUserId : (isAdmin ? null : currentUserId);
+
+        Page<DocumentVO> page = documentService.pageDocumentsByUserId(finalUserId, pageNum, pageSize);
+        return Result.success(PageData.of(page));
+    }
+
+    // ==========================================
+    // 💡 附加接口 1：查看单文档详情
+    // ==========================================
+    @GetMapping("/{id}")
+    @Operation(summary = "获取文档详情", description = "获取单个文档的元数据和状态信息")
+    @PreAuthorize("hasRole('ADMIN') or @docAuth.isOwner(#id)")
+    public Result<DocumentVO> getDocumentById(@PathVariable("id") Long documentId) {
+
+        DocumentVO documentVO = documentService.getDocumentById(documentId);
+        return Result.success(documentVO);
+    }
+
+    // ==========================================
+    // 💡 附加接口 2：获取文档解析切片 (RAG 核心调试接口)
+    // ==========================================
+    @GetMapping("/{id}/chunks")
+    @Operation(summary = "获取文档文本切片", description = "返回文档被拆分后的 Chunk 列表，常用于 RAG 检索质量调优和人工核对")
+    @PreAuthorize("hasRole('ADMIN') or @docAuth.isOwner(#id)")
+    public Result<List<DocumentChunkVO>> getDocumentChunks(@PathVariable("id") Long id) {
+
+        // 同样干掉越权判断参数
+        List<DocumentChunkVO> chunkVOs = documentService.getDocumentChunks(id);
+        return Result.success(chunkVOs);
     }
 }

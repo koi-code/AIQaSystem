@@ -31,4 +31,18 @@ public interface PermissionRepo extends JpaRepository<SysPermission, Long>, JpaS
             "JOIN SysUser u ON r IN elements(u.roles) " +
             "WHERE u.id = :userId AND p.permCode IS NOT NULL")
     List<String> findPermCodesByUserId(@Param("userId") Long userId);
+
+    /**
+     * 检查是否存在以指定 ID 为父节点的子节点
+     * 业务场景：用于在删除菜单/权限节点前进行防御性校验，防止出现“孤儿节点”。
+     * Spring Data JPA 会自动将其解析为类似如下的 SQL:
+     * SELECT COUNT(*) FROM sys_permission WHERE parent_id = ? LIMIT 1
+     *
+     * @param parentId 父节点 ID
+     * @return 如果存在至少一个子节点返回 true，否则返回 false
+     */
+    boolean existsByParentId(Long parentId);
+
+    // 如果后续业务需要根据 permCode 查询节点，可以取消下面这行的注释：
+    // Optional<SysPermission> findByPermCode(String permCode);
 }

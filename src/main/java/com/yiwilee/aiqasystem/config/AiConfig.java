@@ -12,6 +12,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 
 import java.io.InputStream;
 import java.util.Map;
@@ -65,15 +68,19 @@ public class AiConfig {
      */
     @Bean
     public HuggingFaceTokenizer huggingFaceTokenizer(LlmProperties llmProperties) {
+        String path = llmProperties.tokenizerPath();
         try {
-            ClassPathResource resource = new ClassPathResource(llmProperties.tokenizerPath());
+            // 使用 ResourceLoader 可以同时支持 classpath: 和 file: 前缀
+            ResourceLoader loader = new DefaultResourceLoader();
+            Resource resource = loader.getResource(path);
+
             try (InputStream is = resource.getInputStream()) {
                 HuggingFaceTokenizer tokenizer = HuggingFaceTokenizer.newInstance(is, null);
-                log.info("本地 Tokenizer 词表加载成功！路径: {}", llmProperties.tokenizerPath());
+                log.info("本地 Tokenizer 词表加载成功！资源定位: {}", path);
                 return tokenizer;
             }
         } catch (Exception e) {
-            log.error("Tokenizer 加载失败，请检查配置的文件路径: {}", llmProperties.tokenizerPath(), e);
+            log.error("Tokenizer 加载失败，当前尝试路径: {}", path, e);
             throw new RuntimeException("系统初始化失败: Tokenizer 缺失");
         }
     }

@@ -1,5 +1,6 @@
 package com.yiwilee.aiqasystem.service;
 
+import com.yiwilee.aiqasystem.model.vo.DocumentChunkVO;
 import com.yiwilee.aiqasystem.model.vo.DocumentVO;
 import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,10 +36,9 @@ public interface DocumentService {
     /**
      * 删除指定的单个文档 (包含 MySQL 数据、物理硬盘文件、Milvus 向量)
      * @param documentId 文档的主键 ID
-     * @param userId     当前操作人的用户 ID (用于越权校验，防止删除他人文件)
      * @return boolean   是否删除成功
      */
-    boolean deleteDocument(Long documentId, Long userId);
+    boolean deleteDocument(Long documentId);
 
     /**
      * 批量清空某用户上传的所有文档 (包含关联的物理文件和向量)
@@ -47,10 +47,36 @@ public interface DocumentService {
      * @return int 成功清理的文档总数
      */
     int deleteDocuments(Long userId);
+    /**
+     * 根据用户 ID 分页查询私人知识库文档
+     * 包含水平越权（IDOR）安全防护
+     *
+     * @param targetUserId  要查询的目标用户 ID, 或用户自己的 ID
+     * @param pageNum       页码
+     * @param pageSize      每页条数
+     * @return 分页的文档视图对象
+     */
+    Page<DocumentVO> pageDocumentsByUserId(Long targetUserId, int pageNum, int pageSize);
+
+    // ==========================================
+    // 💡 架构师建议追加的实用接口
+    // ==========================================
+
+    /**
+     * 获取单个文档的详细信息
+     */
+    DocumentVO getDocumentById(Long documentId);
+
+    /**
+     * 获取文档解析后的文本切片（Chunk）列表，用于 RAG 调试和人工核验
+     */
+    List<DocumentChunkVO> getDocumentChunks(Long documentId);
 
     /**
      * 重新解析解析失败的文档
      * @param documentId 目标文档 ID
      */
     void reparseDocument(Long documentId);
+
+
 }

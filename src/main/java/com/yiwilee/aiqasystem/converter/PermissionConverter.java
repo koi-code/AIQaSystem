@@ -5,20 +5,26 @@ import com.yiwilee.aiqasystem.model.vo.PermissionVO;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * 权限（菜单）实体与视图对象转换器
+ */
 @Component
 public class PermissionConverter {
 
     /**
-     * 单个对象转换
+     * 将 SysPermission 实体转换为 PermissionVO
+     * * @param permission 权限实体
+     * @return PermissionVO 权限视图对象
      */
     public PermissionVO toVO(SysPermission permission) {
         if (permission == null) {
             return null;
         }
+
         return new PermissionVO(
                 permission.getId(),
                 permission.getParentId(),
@@ -26,43 +32,24 @@ public class PermissionConverter {
                 permission.getPermCode(),
                 permission.getType(),
                 permission.getPath(),
-                new ArrayList<>() // 务必初始化为空列表，防止前端读取 children 时报 null 异常
+                // 【关键防坑】：这里必须初始化为 new ArrayList<>()，而不能用 Collections.emptyList()。
+                // 因为返回的 VO 需要在 Service 层参与树形结构的组装（会调用 children.add() 方法）。
+                new ArrayList<>()
         );
     }
 
     /**
-     * 【企业级核心】：将平铺的数据库记录，组装成带有层级关系的树形菜单！
+     * 批量转换实体列表为 VO 列表
+     * * @param permissions 实体列表
+     * @return VO 列表
      */
-    public List<PermissionVO> buildTree(List<SysPermission> permissions) {
+    public List<PermissionVO> toVOList(List<SysPermission> permissions) {
         if (permissions == null || permissions.isEmpty()) {
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
 
-        // 1. 全部转换为 VO
-        List<PermissionVO> allVOs = permissions.stream()
+        return permissions.stream()
                 .map(this::toVO)
                 .collect(Collectors.toList());
-
-        // 2. 将所有的 VO 按 ID 放入 Map 中，方便后续快速查找父节点
-        Map<Long, PermissionVO> voMap = allVOs.stream()
-                .collect(Collectors.toMap(PermissionVO::id, vo -> vo));
-
-        List<PermissionVO> tree = new ArrayList<>();
-
-        // 3. 遍历组装
-        for (PermissionVO vo : allVOs) {
-            // 假设 parentId == 0 代表它是最顶层的根目录
-            if (vo.parentId() == 0L) {
-                tree.add(vo);
-            } else {
-                // 如果它有爸爸，就把自己塞进爸爸的 children 列表里
-                PermissionVO parent = voMap.get(vo.parentId());
-                if (parent != null) {
-                    parent.children().add(vo);
-                }
-            }
-        }
-
-        return tree;
     }
 }

@@ -1,5 +1,6 @@
 package com.yiwilee.aiqasystem.common;
 
+import io.milvus.param.R;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -44,7 +45,6 @@ public class Result<T> implements Serializable {
     // ==========================================
     // 成功响应 (Success) 静态工厂方法
     // ==========================================
-
     /**
      * 成功：无返回数据 (常用于 DELETE/PUT 操作)
      */
@@ -64,6 +64,14 @@ public class Result<T> implements Serializable {
      */
     public static <T> Result<T> success(String msg, T data) {
         return new Result<>(ResultCode.SUCCESS.getCode(), msg, data);
+    }
+
+    /**
+     * 成功：供测试服务器是否存活等方法使用
+     * 提供精准的状态码
+     */
+    public static <T> Result<T> success(Integer code, String msg, T data) {
+        return new Result<>(code, msg, data);
     }
 
     // ==========================================

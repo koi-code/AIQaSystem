@@ -1,6 +1,8 @@
 package com.yiwilee.aiqasystem.controller;
 
+import com.yiwilee.aiqasystem.common.PageData;
 import com.yiwilee.aiqasystem.common.Result;
+import com.yiwilee.aiqasystem.constant.ApiVersion;
 import com.yiwilee.aiqasystem.converter.UserConverter;
 import com.yiwilee.aiqasystem.model.dto.UserCreateDTO;
 import com.yiwilee.aiqasystem.model.entity.SysUser;
@@ -28,7 +30,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping(ApiVersion.BASE_VERSION + "/users")
 @RequiredArgsConstructor
 @Tag(name = "02. 用户管理", description = "后台用户增删改查及角色分配接口")
 public class UserController {
@@ -56,14 +58,14 @@ public class UserController {
 
     @GetMapping
     @Operation(summary = "分页查询用户列表", description = "支持按用户名模糊搜索")
-    // @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')") // 预留权限控制注解
-    public Result<Page<UserVO>> pageUsers(
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')") // 预留权限控制注解
+    public Result<PageData<UserVO>> pageUsers(
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
 
         // 调用 Service 获取分页数据
-        return Result.success(userService.pageUsers(keyword, pageNum, pageSize));
+        return Result.success(PageData.of(userService.pageUsers(keyword, pageNum, pageSize)));
     }
 
     @PostMapping

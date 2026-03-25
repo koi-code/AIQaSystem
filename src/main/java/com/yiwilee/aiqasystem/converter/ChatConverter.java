@@ -60,4 +60,14 @@ public class ChatConverter {
                 .map(this::toMessageVO)
                 .collect(Collectors.toList());
     }
+
+    public List<ChatSessionVO> toVOList(List<ChatSession> sessions) {
+        if (sessions == null || sessions.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return sessions.stream()
+                .map(this::toSessionVO)
+                .collect(Collectors.toList());
+    }
 }

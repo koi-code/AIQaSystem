@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
+@Deprecated
 @Slf4j
 @Service
 @RequiredArgsConstructor

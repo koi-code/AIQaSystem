@@ -15,6 +15,10 @@ import com.yiwilee.aiqasystem.repository.UserRepo;
 import com.yiwilee.aiqasystem.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -79,11 +83,11 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteSession(Long sessionId, Long userId) {
-        ChatSession session = getAndCheckSession(sessionId, userId);
+    public void deleteSession(Long sessionId) {
+        ChatSession session = getSession(sessionId);
         // JPA 的 cascade = CascadeType.ALL 会自动级联删除对应的 ChatMessage
         sessionRepo.delete(session);
-        log.info("用户 {} 删除了会话: {}", userId, sessionId);
+        log.info("用户 {} 删除了会话: {}", session.getUser().getUsername(), sessionId);
     }
 
     @Override
@@ -120,8 +124,7 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ChatMessage saveMessage(Long sessionId, MessageRole messageRole, String content, String referenceDocs, Integer tokenUsage) {
-        ChatSession session = sessionRepo.findById(sessionId)
-                .orElseThrow(() -> new ResourceNotFoundException("会话已失效或不存在"));
+        ChatSession session = getSession(sessionId);
 
         int actualTokenUsage = (tokenUsage != null) ? tokenUsage : 0;
 
@@ -140,11 +143,74 @@ public class ChatServiceImpl implements ChatService {
         return messageRepo.save(message);
     }
 
+    // ==========================================
+    // 新增：管理员获取指定用户的会话
+    // ==========================================
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChatSessionVO> getUserSessionsByAdmin(Long targetUserId) {
+        List<ChatSession> sessions = sessionRepo.findAllByUserIdOrderByUpdateTimeDesc(targetUserId);
+        return converter.toVOList(sessions);
+    }
+
+    // ==========================================
+    // 优化：分页拉取历史消息
+    // ==========================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ChatMessageVO> getSessionMessagesForFrontend(Long sessionId, int pageNum, int pageSize) {
+        // 1. 校验会话是否存在
+        ChatSession session = getSession(sessionId);
+
+        // 2. 构造分页参数 (时间倒序 DESC)
+        int actualPage = Math.max(0, pageNum - 1);
+        Pageable pageable = PageRequest.of(actualPage, pageSize, Sort.by(Sort.Direction.DESC, "createTime"));
+
+        // 3. 分页查库并转换为 VO
+        Page<ChatMessage> messagePage = messageRepo.findBySessionId(sessionId, pageable);
+
+        return messagePage.map(converter::toMessageVO);
+    }
+
+    /**
+     * 【修改】供前端调用的：分页获取指定会话下的聊天记录
+     * @param sessionId 目标会话 ID
+     * @param userId    当前操作用户 ID
+     * @param pageNum   页码
+     * @param pageSize  每页条数（阈值控制）
+     * @return Page<ChatMessageVO> 脱敏且分页后的聊天记录
+     */
+//    @Override
+//    @Transactional(readOnly = true)
+//    public Page<ChatMessageVO> getSessionMessagesForFrontend(Long sessionId, Long userId, boolean isAdmin, int pageNum, int pageSize) {
+//        // 1. 校验会话是否存在
+//        ChatSession session = chatSessionRepo.findById(sessionId)
+//                .orElseThrow(() -> new ResourceNotFoundException("当前对话会话不存在或已删除"));
+//
+//        // 2. IDOR 水平越权校验：非管理员只能看自己的会话
+//        if (!isAdmin && !session.getUser().getId().equals(userId)) {
+//            throw new ChatException("非法越权：您无权查看该会话的聊天记录！");
+//        }
+//
+//        // 3. 构造分页参数。
+//        // 【架构师提示】：聊天记录通常是下拉加载更多，所以必须按 createTime 倒序（DESC）查出最新的。
+//        // 前端拿到数据后，可以自己 reverse() 一下渲染到页面上。
+//        int actualPage = Math.max(0, pageNum - 1);
+//        Pageable pageable = PageRequest.of(actualPage, pageSize, Sort.by(Sort.Direction.DESC, "createTime"));
+//
+//        // 4. 分页查库并转换为 VO
+//        Page<ChatMessage> messagePage = chatMessageRepo.findBySessionId(sessionId, pageable);
+//
+//        return messagePage.map(chatMessageConverter::toVO);
+//    }
+
     // ---------------- 内部安全与工具方法 ----------------
 
     /**
      * 获取会话并进行水平越权(IDOR)严格校验
      */
+    @Deprecated
     private ChatSession getAndCheckSession(Long sessionId, Long userId) {
         ChatSession session = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("会话已失效或不存在"));
@@ -155,6 +221,11 @@ public class ChatServiceImpl implements ChatService {
         }
 
         return session;
+    }
+
+    private ChatSession getSession(Long sessionId) {
+        return sessionRepo.findById(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("会话已失效或不存在"));
     }
 
     /* 已实现了对应 converter 工具类*/

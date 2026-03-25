@@ -6,9 +6,10 @@ spring:
   # 数据库与 JPA 配置
   # ==========================================
   datasource:
-    url: jdbc:mysql://localhost:3306/temp
-    username: root
-    password: 1234
+    # 动态插槽：DB_URL, DB_USER, DB_PASS
+    url: ${DB_URL:jdbc:mysql://localhost:3306/temp}
+    username: ${DB_USER:root}
+    password: ${DB_PASS:1234}
   jpa:
     hibernate:
       ddl-auto: update
@@ -30,58 +31,50 @@ spring:
   # ==========================================
   ai:
     openai:
-      api-key: sk-vjkqmxsddpaianiyrxrgvjmdvhzvihoqgtdmbladpprudtso
-      base-url: https://api.siliconflow.com
+      # 动态插槽：强烈建议把大模型的 KEY 抽离，防止在 GitHub 泄露
+      api-key: ${AI_API_KEY:sk-vjkqmxsddpaianiyrxrgvjmdvhzvihoqgtdmbladpprudtso}
+      base-url: ${AI_BASE_URL:https://api.siliconflow.com}
       chat:
         options:
-          model: Qwen/QwQ-32B
+          model: ${AI_CHAT_MODEL:Qwen/QwQ-32B}
       embedding:
         options:
-          model: Qwen/Qwen3-Embedding-0.6B
-
-    # 官方自带的 Milvus 参数支持
-    vectorstore:
-      milvus:
-        client:
-          host: localhost
-          port: 19530
-          token: "root:1234"
-        collection-name: aiqa_knowledge_base_v2
-        initialize-schema: false
-        embedding-dimension: 1024
-        index-type: HNSW
-        metric-type: cosine
-
-# ==========================================
-# 自定义业务系统配置
-# ==========================================
-app:
-  upload:
-    path: D:/aiqa_data/uploads/
+          model: ${AI_EMBEDDING_MODEL:Qwen/Qwen3-Embedding-0.6B}
 
 # ==========================================
 # Milvus 数据库配置, AI 上下文与 Tokenizer 配置
 # ==========================================
 aiqa:
+  # 应用版本
+  version: 1.1.1
+  api:
+    # URL 版本号
+    version-prefix: /api/v2
+  upload:
+    # 动态插槽：生产环境通常是 Linux 路径，如 /app/uploads/
+    path: ${UPLOAD_PATH:D:/aiqa_data/uploads/}
+
   milvus:
-    uri: "http://localhost:19530"
+    # 动态插槽：MILVUS_URI (注意这里的变量名不要和上面冲突，或者统一用同一套)
+    uri: ${MILVUS_URI:http://localhost:19530}
     collection-name: "aiqa_knowledge_base_v2"
     dimension: 1024
     index-type: "IVF_FLAT"
     metric-type: "COSINE"
     default-type: "chunk"
     top-k: 5
-    token: "root:1234"
+    token: ${MILVUS_TOKEN:root:1234}
   llm:
     active-provider: openAi
     max-context-tokens: 6000         # 你的模型总 Token 预算上限
     reserved-output-tokens: 1500     # 留给模型生成回答的安全空间
-    tokenizer-path: "tokenizers/qwen/qwen-2.5-tokenizer.json" # 本地离线词表路径
+    tokenizer-path: ${TOKENIZER_PATH:classpath:tokenizers/qwen/qwen-2.5-tokenizer.json} # 本地离线词表路径
 
 # ==========================================
 # 安全认证配置
 # ==========================================
 security:
   jwt:
-    secret-key: YmlzaGVwcm9qZWN0YWlxYXN5c3RlbXNlY3JldGtleTIwMjY=
-    expiration-time: 604800000
+    # 动态插槽：JWT 密钥在生产环境必须替换，防止 Token 伪造
+    secret-key: ${JWT_SECRET:YmlzaGVwcm9qZWN0YWlxYXN5c3RlbXNlY3JldGtleTIwMjY=}
+    expiration-time: ${JWT_EXPIRATION:604800000}

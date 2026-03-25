@@ -18,4 +18,10 @@ public interface ChatSessionRepo extends JpaRepository<ChatSession, Long> {
     @Modifying
     @Query("DELETE FROM ChatSession s WHERE s.user.id = :userId")
     int bulkDeleteByUserId(@Param("userId") Long userId);
+
+
+    @Query("SELECT s.user.id FROM ChatSession s WHERE s.id = :sessionId")
+    Long findUserIdBySessionId(@Param("sessionId") Long sessionId);
+
+    Long id(Long id);
 }

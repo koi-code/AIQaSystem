@@ -9,6 +9,7 @@ import com.yiwilee.aiqasystem.exception.ResourceNotFoundException;
 import com.yiwilee.aiqasystem.model.entity.Document;
 import com.yiwilee.aiqasystem.model.entity.DocumentChunk;
 import com.yiwilee.aiqasystem.model.entity.SysUser;
+import com.yiwilee.aiqasystem.model.vo.DocumentChunkVO;
 import com.yiwilee.aiqasystem.model.vo.DocumentVO;
 import com.yiwilee.aiqasystem.repository.DocumentChunkRepo;
 import com.yiwilee.aiqasystem.repository.DocumentRepo;
@@ -52,7 +53,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final VectorService vectorService;
     private final EmbeddingModel embeddingModel;
 
-    @Value("${app.upload.path:/tmp/aiqa/uploads/}")
+    @Value("${aiqa.upload.path:/tmp/aiqa/uploads/}")
     private String uploadPath;
 
     // 警告：这里刻意去掉了最外层的 @Transactional！
@@ -176,16 +177,53 @@ public class DocumentServiceImpl implements DocumentService {
         return documentRepo.findAll(spec, pageable).map(documentConverter::toVO);
     }
 
+    // ==========================================
+    // 新增：获取用户的文档列表 (带水平越权防护)
+    // ==========================================
+    @Override
+    @Transactional(readOnly = true)
+    public Page<DocumentVO> pageDocumentsByUserId(Long userId, int pageNum, int pageSize) {
+        int actualPage = Math.max(0, pageNum - 1);
+        Pageable pageable = PageRequest.of(actualPage, pageSize, Sort.by(Sort.Direction.DESC, "createTime"));
+
+        Page<Document> docPage;
+        if (userId == null) {
+            // 管理员没传 ID，查询全系统文档
+            docPage = documentRepo.findAll(pageable);
+        } else {
+            // 查询指定用户的文档
+            docPage = documentRepo.findByUploaderId(userId, pageable);
+        }
+
+        return docPage.map(documentConverter::toVO);
+    }
+
+    // ==========================================
+    // 💡 附加实现 1：获取单文档详情
+    // ==========================================
+    @Override
+    @Transactional(readOnly = true)
+    public DocumentVO getDocumentById(Long documentId) {
+        Document document = getDocument(documentId);
+        return documentConverter.toVO(document);
+    }
+
+    // ==========================================
+    // 💡 附加实现 2：获取文档切片(用于 RAG 调试)
+    // ==========================================
+    @Override
+    @Transactional(readOnly = true)
+    public List<DocumentChunkVO> getDocumentChunks(Long documentId) {
+        Document document = getDocument(documentId);
+
+        List<DocumentChunk> chunks = documentChunkRepo.findByDocumentId(documentId);
+        return documentConverter.toChunkVOList(chunks);
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean deleteDocument(Long documentId, Long userId) {
-        Document document = documentRepo.findById(documentId)
-                .orElseThrow(() -> new ResourceNotFoundException("知识库文件不存在！"));
-
-        // 水平越权校验：非管理员只能删自己的文件
-        if (!document.getUploader().getId().equals(userId)) {
-            throw new DocumentException("非法操作：您无权删除他人的文件！");
-        }
+    public boolean deleteDocument(Long documentId) {
+        Document document = getDocument(documentId);
 
         List<DocumentChunk> chunks = documentChunkRepo.findByDocumentId(documentId);
         List<Long> chunkIds = chunks.stream().map(DocumentChunk::getId).collect(Collectors.toList());
@@ -205,7 +243,7 @@ public class DocumentServiceImpl implements DocumentService {
             log.info("物理文件 {} 删除状态: {}", document.getFilePath(), isDeleted);
         }
 
-        log.info("用户 {} 成功彻底删除了文件: {}", userId, document.getName());
+        log.info("用户彻底删除了文件: {}", document.getName());
         return true;
     }
 
@@ -243,6 +281,21 @@ public class DocumentServiceImpl implements DocumentService {
     public void reparseDocument(Long documentId) {
         log.warn("重试解析功能暂未实现，文档 ID: {}", documentId);
         throw new DocumentException("暂未实现该功能");
+    }
+
+    private Document getDocument(Long documentId) {
+        return documentRepo.findById(documentId)
+                .orElseThrow(() -> new DocumentException("知识库文件不存在！"));
+    }
+
+    /**
+     * 内部安全校验工具方法
+     */
+    @Deprecated
+    private void checkDocumentAccessAuth(Document document, Long currentUserId, boolean isAdmin) {
+        if (!isAdmin && !document.getUploader().getId().equals(currentUserId)) {
+            throw new DocumentException("非法越权访问：您无权查看他人的文档数据");
+        }
     }
 
     // ---------------- 内部工具方法 ----------------

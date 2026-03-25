@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # 1. 关系型数据库 MySQL
+  # ==========================================
+  mysql:
+    image: mysql:8.0
+    container_name: aiqa-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "1234"
+      MYSQL_DATABASE: "temp"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - aiqa-net
+
+  # ==========================================
+  # 2. 向量数据库 Milvus 及依赖组件
+  # ==========================================
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: milvus-etcd
+    restart: always
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    networks:
+      - aiqa-net
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: milvus-minio
+    restart: always
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    networks:
+      - aiqa-net
+
+  milvus:
+    image: milvusdb/milvus:v2.4.0
+    container_name: aiqa-milvus
+    restart: always
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    ports:
+      - "19530:19530"
+    volumes:
+      - milvus_data:/var/lib/milvus
+    depends_on:
+      - etcd
+      - minio
+    networks:
+      - aiqa-net
+
+  # ==========================================
+  # 3. 核心业务服务：Spring Boot 应用
+  # ==========================================
+  aiqa-server:
+    # 告诉 compose 直接读取当前目录的 Dockerfile 进行自动构建！
+    build: .
+    container_name: aiqa-server
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      # 映射 application.yml 中的动态插槽
+      - DB_URL=jdbc:mysql://mysql:3306/temp
+      - DB_USER=root
+      - DB_PASS=1234
+
+      # 强烈建议在此处填写真实的硅基流动 API KEY，不要提交到 Git
+      - AI_API_KEY=sk-vjkqmxsddpaianiyrxrgvjmdvhzvihoqgtdmbladpprudtso
+
+      # Milvus 内部网络路由
+      - MILVUS_HOST=milvus
+      - MILVUS_PORT=19530
+      - MILVUS_URI=http://milvus:19530
+
+      # 文件上传路径指向容器内的通用路径
+      - UPLOAD_PATH=/app/uploads/
+
+      # 生产环境专属的 JWT 密钥（你可以随便改一长串字符）
+      - JWT_SECRET=Production_Super_Secret_Key_2026_AIQA_SYSTEM
+
+      # 调整 JVM 内存分配（根据你服务器的实际内存修改，这里给 1G）
+      - JAVA_OPTS=-Xmx1g -Xms1g
+    volumes:
+      # 将宿主机的真实目录挂载到容器内，保证上传的文档不丢失
+      # 格式: 宿主机绝对路径 : 容器内绝对路径
+      - /data/aiqa_uploads:/app/uploads/
+    depends_on:
+      - mysql
+      - milvus
+    networks:
+      - aiqa-net
+
+networks:
+  aiqa-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
