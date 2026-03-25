@@ -51,7 +51,7 @@ public class ChatSessionController {
         if(sessions.isEmpty()) {
 //            log.warn("{} 用户没有任何对话历史，将创建新的对话...", userId);
 //            chatService.createSession(userId);
-            return Result.fail(ResultCode.NOT_FOUND.getCode(), "没有任何会话, 将自动创建空白新对话");
+            return Result.success(ResultCode.NOT_FOUND.getCode(), "空会话记录");
         }
         return Result.success(sessions);
     }

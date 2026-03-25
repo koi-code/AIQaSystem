@@ -67,6 +67,13 @@ public class Result<T> implements Serializable {
     }
 
     /**
+     * 成功：自定义提示信息并携带数据
+     */
+    public static <T> Result<T> success(Integer code, String msg) {
+        return new Result<>(ResultCode.SUCCESS.getCode(), msg, null);
+    }
+
+    /**
      * 成功：供测试服务器是否存活等方法使用
      * 提供精准的状态码
      */
